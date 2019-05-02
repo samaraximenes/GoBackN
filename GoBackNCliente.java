@@ -1,64 +1,54 @@
-package br.unifor.cct.redes;
-import java.net.*;
-import java.util.Random;
-import java.io.*;
+package br.unifor.cct;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+
 public class GoBackNCliente {
+
+	public static void main(String [] args) throws Exception{
+	System.out.println("Iniciando Cliente...");
+	System.out.println("Iniciando Conexão com o servidor...");
+	Socket client = new Socket("localhost", 44446);
+	System.out.println("Conexão Estabalecida Cliente!");
+	ObjectOutputStream oos=new ObjectOutputStream(client.getOutputStream());
+	ObjectInputStream ois=new ObjectInputStream(client.getInputStream());
 	
-	public static void main(String args[]) throws Exception{
-	
-		BufferedReader br=new BufferedReader(new InputStreamReader(System.in));
-		System.out.print("Digite a quantidade de pacotes :");
-		int m=Integer.parseInt(br.readLine());
-		int x=(int)((Math.pow(2,m))-1);
-		System.out.print("Numero de pacotes enviados:");
-		int count=Integer.parseInt(br.readLine());
-		int data[]=new int[count];
-		int h=0;
-			for(int i=0;i<count;i++){
-			data[i]=i;
-			h=(h+1)%x;
-			}
-		
-		Socket client=new Socket("localhost",5252);
-		ObjectInputStream ois=new ObjectInputStream(client.getInputStream());
-		ObjectOutputStream oos=new ObjectOutputStream(client.getOutputStream());
-		System.out.println("Connected with server.");
-		boolean flag=false;
-		GoBackNListener listener=new GoBackNListener(ois,x);
-		listener=new GoBackNListener(ois,x);
-		listener.t.start();
-		int strt=0;
-		h=0;
-		oos.writeObject(x);
-			do{
-				int c=h;
-				for(int i=h;i<count;i++){
-					System.out.print("|"+c+"|");
-					c=(c+1)%x;
-				}
-				System.out.println();
-				System.out.println();
-				h=strt;
-					for(int i=strt;i<count;i++){
-						System.out.println("Enviando pacote:"+h);
-						h=(h+1)%x;
-						System.out.println();
-						oos.writeObject(i);
-						oos.writeObject(data[i]);
-						Thread.sleep(100);
-					}
-				listener.t.join(3500);
-				if(listener.reply!=x-1){
-					System.out.println("Não recebemos o pacote no tempo determinado. Por favor reenvie o pacote:" + (listener.reply+1));
-					System.out.println();
-					strt=listener.reply+1;
-					flag=false;
+	 
+	int totalpacotes = (Integer)ois.readObject();
+	//int controletotalpacotesois = (Integer)ois.readObject();
+	int controletotalpacotes = 0;
+	int cont = 0;
+	long tempofinal;
+	while(controletotalpacotes<totalpacotes) {
+		for(int i=0;i<totalpacotes;i++) {
+			int controletotalpacotesois = (Integer)ois.readObject();
+				if(controletotalpacotesois==cont) {
+				controletotalpacotes++;
+				cont++;
+				System.out.println("Pacote Recebido:" + controletotalpacotesois + " Enviando o ACK!");
+				tempofinal = System.currentTimeMillis();
+				oos.writeObject(true);
+				oos.writeObject(controletotalpacotesois);
+				oos.writeObject(tempofinal);
 				}
 				else{
-					System.out.println("Todos os pacotes foram entregues");
-					flag=true;
+					System.out.println("Pacote esperado era o :"+ cont + "\n"+" Recebido foi o:"+controletotalpacotesois+"\n");
+					tempofinal=System.currentTimeMillis();
+					oos.writeObject(false);
+					oos.writeObject(controletotalpacotesois);
+					oos.writeObject(tempofinal);
 				}
-		}while(!flag);
-		oos.writeObject(-1);
+		}
+	}
+
+	System.out.println("Encerrando Conexão!");
+	ois.close();
+	oos.close();
+	client.close();
+	System.out.println("Encerrando Servidor!");
+	
 	}
 }
